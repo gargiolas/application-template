@@ -20,7 +20,7 @@ $projects = @(
     @{ Name = "$SolutionName.Shared"; Path = "src/Common"; Template = "classlib" }
 )
 
-ù# Ottieni il percorso della cartella in cui si trova lo script
+# Ottieni il percorso della cartella in cui si trova lo script
 $scriptPath = Split-Path -Parent $MyInvocation.MyCommand.Definition
 
 # Vai nella cartella dello script
@@ -51,6 +51,37 @@ $dependencies = @{
     "$SolutionName.EndPoints" = @("$SolutionName.Application")  
 }
 
+$folders = @{
+    "$SolutionName.Domain" = @(
+        "Abstractions", 
+        "Abstractions/Persistence", 
+        "Abstractions/Events"
+    )
+    "$SolutionName.Application" = @(
+        "Abstractions", 
+        "Abstractions/Behaviors",
+        "Abstractions/Providers", 
+        "Abstractions/Services", 
+        "Abstractions/Proxies",
+        "Abstractions/Messages",
+        "Extensions",
+        "Features"
+    )
+    "$SolutionName.Infrastructure" = @(
+        "Extensions",
+        "Services",
+        "Installers",
+        "Providers",
+        "Proxies",
+        "Queues",
+        "Queues/Consumers",
+        "Queues/Producers",
+        "Jobs"
+    )
+}
+
+$arrayList = [System.Collections.ArrayList]::new()
+
 # Configurazione Modules
 $Modules -split "," | ForEach-Object {
     $projectName = $_.Trim()
@@ -61,6 +92,17 @@ $Modules -split "," | ForEach-Object {
         Template = "classlib"
     }
     $projects += $infraModule
+
+    $folders["Modules.$projectName.Infrastructure"] = @(
+        "Extensions",
+        "Services",
+        "Providers",
+        "Proxies",
+        "Queues",
+        "Queues/Consumers",
+        "Queues/Producers",
+        "Jobs"
+    )
 
     $persistenceModule = @{
         Name ="Modules.$projectName.Persistence"
@@ -90,6 +132,12 @@ $Modules -split "," | ForEach-Object {
     }
     $projects += $domainModule
 
+    $folders["Modules.$projectName.Domain"] = @(
+            "Abstractions", 
+            "Abstractions/Persistence", 
+            "Abstractions/Events"
+        )
+
     $dependencies["Modules.$projectName.Domain"] = @("$SolutionName.Domain")
     $dependencies["Modules.$projectName.Application"] = @(
         "$SolutionName.Application",
@@ -109,13 +157,16 @@ $Modules -split "," | ForEach-Object {
             "$SolutionName.Persistence",
              "Modules.$projectName.Domain"
         )
-    $dependencies["$SolutionName.Infrastructure"] = @(
-             "Modules.$projectName.Infrastructure"
-    )
+
+    [void]$arrayList.Add("Modules.$projectName.Infrastructure")
 }
   
+ $dependencies["$SolutionName.App"] = @(
+             $arrayList.ToArray()
+    )
+
 try {
-    & "$PSScriptRoot\Generazione progetti.ps1" -SolutionName $SolutionName -Projects $projects -Dependencies $dependencies
+    & "$PSScriptRoot\Generazione progetti.ps1" -SolutionName $SolutionName -Projects $projects -Dependencies $dependencies -Folders  $folders
 } catch {
     Write-Error "Errore nell'esecuzione di Generazione progetti.ps1: $_"
 }
